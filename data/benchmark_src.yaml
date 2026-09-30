@@ -1,0 +1,462 @@
+# Hand-written source of the benchmark. `scripts/make_benchmark.py` executes every gold_cypher
+# (and alt_cyphers for ambiguous questions) and writes data/benchmark.jsonl with gold_result filled.
+# Rules: every gold query returns ONE column; answer_rule is set | list | number | refuse.
+# Ambiguous questions: gold_cypher lists all candidates; alt_cyphers give one result per reading.
+
+# ------------------------------------------------------------------ lookup
+- qid: L01
+  category: lookup
+  difficulty: easy
+  question: Which vendor made device D-0042?
+  answer_rule: set
+  gold_cypher: "MATCH (d:Device {id: 'D-0042'}) RETURN d.vendor"
+
+- qid: L02
+  category: lookup
+  difficulty: easy
+  question: What is the current status of device D-0031?
+  answer_rule: set
+  gold_cypher: "MATCH (d:Device {id: 'D-0031'}) RETURN d.status"
+
+- qid: L03
+  category: lookup
+  difficulty: easy
+  question: What type of device is D-0024?
+  answer_rule: set
+  gold_cypher: "MATCH (d:Device {id: 'D-0024'}) RETURN d.device_type"
+
+- qid: L04
+  category: lookup
+  difficulty: easy
+  question: How long is cable L-0031, in metres?
+  answer_rule: number
+  gold_cypher: "MATCH (c:Cable {id: 'L-0031'}) RETURN c.length_m"
+
+- qid: L05
+  category: lookup
+  difficulty: easy
+  question: In what year was device D-0060 installed?
+  answer_rule: number
+  gold_cypher: "MATCH (d:Device {id: 'D-0060'}) RETURN d.install_year"
+
+- qid: L06
+  category: lookup
+  difficulty: easy
+  question: Which customer segment does customer C-0020 belong to?
+  answer_rule: set
+  gold_cypher: "MATCH (c:Customer {id: 'C-0020'}) RETURN c.segment"
+
+- qid: L07
+  category: lookup
+  difficulty: easy
+  question: What is the capacity of energy source E-025 in kW?
+  answer_rule: number
+  gold_cypher: "MATCH (e:EnergySource {id: 'E-025'}) RETURN e.capacity_kw"
+
+- qid: L08
+  category: lookup
+  difficulty: medium
+  question: What kind of site is Vismarkt?
+  answer_rule: set
+  gold_cypher: "MATCH (s:Site {name: 'Vismarkt'}) RETURN s.site_type"
+
+- qid: L09
+  category: lookup
+  difficulty: medium
+  question: In which city is the Kerkstraat site located?
+  answer_rule: set
+  gold_cypher: "MATCH (s:Site {name: 'Kerkstraat'}) RETURN DISTINCT s.city"
+  alt_cyphers:
+    - "MATCH (s:Site {name: 'Kerkstraat', city: 'Amsterdam'}) RETURN s.city"
+    - "MATCH (s:Site {name: 'Kerkstraat', city: 'Eindhoven'}) RETURN s.city"
+  notes: Ambiguous - two sites are called Kerkstraat.
+
+- qid: L10
+  category: lookup
+  difficulty: medium
+  question: Which types of energy source power the Stationsplein site?
+  answer_rule: set
+  gold_cypher: >-
+    MATCH (e:EnergySource)-[:POWERS]->(:Site {name: 'Stationsplein'})
+    RETURN DISTINCT e.source_type
+  alt_cyphers:
+    - >-
+      MATCH (e:EnergySource)-[:POWERS]->(:Site {name: 'Stationsplein', city: 'Utrecht'})
+      RETURN DISTINCT e.source_type
+    - >-
+      MATCH (e:EnergySource)-[:POWERS]->(:Site {name: 'Stationsplein', city: 'Groningen'})
+      RETURN DISTINCT e.source_type
+  notes: Ambiguous - Stationsplein exists in Utrecht and Groningen; only Groningen has a battery.
+
+# ------------------------------------------------------------------ filter_agg
+- qid: F01
+  category: filter_agg
+  difficulty: easy
+  question: How many devices are currently in the failed state?
+  answer_rule: number
+  gold_cypher: "MATCH (d:Device {status: 'failed'}) RETURN count(d)"
+
+- qid: F02
+  category: filter_agg
+  difficulty: medium
+  question: How many OLTs are currently in maintenance in Utrecht?
+  answer_rule: number
+  gold_cypher: >-
+    MATCH (:Site {city: 'Utrecht'})-[:CONTAINS]->(:Cabinet)-[:HOUSES]->
+    (d:Device {device_type: 'olt', status: 'maintenance'})
+    RETURN count(d)
+  notes: City is a Site property, so the query must go Site -> Cabinet -> Device.
+
+- qid: F03
+  category: filter_agg
+  difficulty: easy
+  question: How many copper cables are there in the network?
+  answer_rule: number
+  gold_cypher: "MATCH (c:Cable {medium: 'copper'}) RETURN count(c)"
+
+- qid: F04
+  category: filter_agg
+  difficulty: medium
+  question: What is the total length in metres of all copper cables?
+  answer_rule: number
+  gold_cypher: "MATCH (c:Cable {medium: 'copper'}) RETURN sum(c.length_m)"
+
+- qid: F05
+  category: filter_agg
+  difficulty: easy
+  question: How many business customers are there in area code 040?
+  answer_rule: number
+  gold_cypher: "MATCH (c:Customer {segment: 'business', area_code: '040'}) RETURN count(c)"
+
+- qid: F06
+  category: filter_agg
+  difficulty: easy
+  question: Which vendors supply the OLTs in the network?
+  answer_rule: set
+  gold_cypher: "MATCH (d:Device {device_type: 'olt'}) RETURN DISTINCT d.vendor"
+
+- qid: F07
+  category: filter_agg
+  difficulty: medium
+  question: How many customers subscribe to a TV service?
+  answer_rule: number
+  gold_cypher: >-
+    MATCH (c:Customer)-[:SUBSCRIBES_TO]->(:Service {service_type: 'tv'})
+    RETURN count(DISTINCT c)
+
+- qid: F08
+  category: filter_agg
+  difficulty: hard
+  question: List the IDs of the three longest fiber cables, longest first.
+  answer_rule: list
+  gold_cypher: >-
+    MATCH (c:Cable {medium: 'fiber'}) RETURN c.id ORDER BY c.length_m DESC LIMIT 3
+
+- qid: F09
+  category: filter_agg
+  difficulty: medium
+  question: How many ONTs were installed before 2012?
+  answer_rule: number
+  gold_cypher: >-
+    MATCH (d:Device {device_type: 'ont'}) WHERE d.install_year < 2012 RETURN count(d)
+
+- qid: F10
+  category: filter_agg
+  difficulty: medium
+  question: Which vendors made the OLTs at the Stationsplein site?
+  answer_rule: set
+  gold_cypher: >-
+    MATCH (:Site {name: 'Stationsplein'})-[:CONTAINS]->(:Cabinet)-[:HOUSES]->
+    (d:Device {device_type: 'olt'}) RETURN DISTINCT d.vendor
+  alt_cyphers:
+    - >-
+      MATCH (:Site {name: 'Stationsplein', city: 'Utrecht'})-[:CONTAINS]->(:Cabinet)-[:HOUSES]->
+      (d:Device {device_type: 'olt'}) RETURN DISTINCT d.vendor
+    - >-
+      MATCH (:Site {name: 'Stationsplein', city: 'Groningen'})-[:CONTAINS]->(:Cabinet)-[:HOUSES]->
+      (d:Device {device_type: 'olt'}) RETURN DISTINCT d.vendor
+  notes: Ambiguous - Stationsplein exists in Utrecht and Groningen.
+
+# ------------------------------------------------------------------ multi_hop
+- qid: M01
+  category: multi_hop
+  difficulty: medium
+  question: Which OLT feeds ONT D-0060?
+  answer_rule: set
+  gold_cypher: "MATCH (o:Device)-[:FEEDS]->(:Device {id: 'D-0060'}) RETURN o.id"
+
+- qid: M02
+  category: multi_hop
+  difficulty: medium
+  question: Which core router is directly upstream of aggregation switch D-0011?
+  answer_rule: set
+  gold_cypher: "MATCH (r:Device)-[:FEEDS]->(:Device {id: 'D-0011'}) RETURN r.id"
+
+- qid: M03
+  category: multi_hop
+  difficulty: medium
+  question: Which types of service does customer C-0007 subscribe to?
+  answer_rule: set
+  gold_cypher: >-
+    MATCH (:Customer {id: 'C-0007'})-[:SUBSCRIBES_TO]->(s:Service) RETURN DISTINCT s.service_type
+
+- qid: M04
+  category: multi_hop
+  difficulty: hard
+  question: Which types of energy source power the site that houses device D-0033?
+  answer_rule: set
+  gold_cypher: >-
+    MATCH (e:EnergySource)-[:POWERS]->(:Site)-[:CONTAINS]->(:Cabinet)-[:HOUSES]->
+    (:Device {id: 'D-0033'}) RETURN DISTINCT e.source_type
+
+- qid: M05
+  category: multi_hop
+  difficulty: hard
+  question: In which city is the site that houses the OLT serving customer C-0020?
+  answer_rule: set
+  gold_cypher: >-
+    MATCH (:Customer {id: 'C-0020'})-[:SUBSCRIBES_TO]->(:Service)<-[:DELIVERS]-(ont:Device)
+    <-[:FEEDS]-(olt:Device {device_type: 'olt'})<-[:HOUSES]-(:Cabinet)<-[:CONTAINS]-(s:Site)
+    RETURN DISTINCT s.city
+  notes: ONTs are not housed in cabinets; the site must be found via the OLT.
+
+- qid: M06
+  category: multi_hop
+  difficulty: medium
+  question: Which customers are connected to OLT D-0022?
+  answer_rule: set
+  gold_cypher: >-
+    MATCH (:Device {id: 'D-0022'})-[:FEEDS]->(:Device)-[:DELIVERS]->(:Service)
+    <-[:SUBSCRIBES_TO]-(c:Customer) RETURN DISTINCT c.id
+
+- qid: M07
+  category: multi_hop
+  difficulty: medium
+  question: What is the medium of the cable connecting ONT D-0043 to its OLT?
+  answer_rule: set
+  gold_cypher: >-
+    MATCH (olt:Device)-[:FEEDS]->(ont:Device {id: 'D-0043'})
+    MATCH (olt)<-[:CONNECTS]-(c:Cable)-[:CONNECTS]->(ont) RETURN c.medium
+
+- qid: M08
+  category: multi_hop
+  difficulty: hard
+  question: Which vendor made the ONT that delivers service V-0038?
+  answer_rule: set
+  gold_cypher: "MATCH (d:Device)-[:DELIVERS]->(:Service {id: 'V-0038'}) RETURN d.vendor"
+
+- qid: M09
+  category: multi_hop
+  difficulty: hard
+  question: At which datacenter site is the core router located that is upstream of OLT D-0034?
+  answer_rule: set
+  gold_cypher: >-
+    MATCH (r:Device {device_type: 'core_router'})-[:FEEDS*]->(:Device {id: 'D-0034'})
+    MATCH (s:Site)-[:CONTAINS]->(:Cabinet)-[:HOUSES]->(r) RETURN s.name
+
+- qid: M10
+  category: multi_hop
+  difficulty: hard
+  question: Which vendors made the aggregation switches that feed the OLTs at the Kerkstraat site?
+  answer_rule: set
+  gold_cypher: >-
+    MATCH (:Site {name: 'Kerkstraat'})-[:CONTAINS]->(:Cabinet)-[:HOUSES]->
+    (:Device {device_type: 'olt'})<-[:FEEDS]-(a:Device {device_type: 'agg_switch'})
+    RETURN DISTINCT a.vendor
+  alt_cyphers:
+    - >-
+      MATCH (:Site {name: 'Kerkstraat', city: 'Amsterdam'})-[:CONTAINS]->(:Cabinet)-[:HOUSES]->
+      (:Device {device_type: 'olt'})<-[:FEEDS]-(a:Device {device_type: 'agg_switch'})
+      RETURN DISTINCT a.vendor
+    - >-
+      MATCH (:Site {name: 'Kerkstraat', city: 'Eindhoven'})-[:CONTAINS]->(:Cabinet)-[:HOUSES]->
+      (:Device {device_type: 'olt'})<-[:FEEDS]-(a:Device {device_type: 'agg_switch'})
+      RETURN DISTINCT a.vendor
+  notes: Ambiguous - Kerkstraat exists in Amsterdam and Eindhoven.
+
+# ------------------------------------------------------------------ impact
+- qid: I01
+  category: impact
+  difficulty: medium
+  question: If aggregation switch D-0029 fails, how many business customers lose service?
+  answer_rule: number
+  gold_cypher: >-
+    MATCH (:Device {id: 'D-0029'})-[:FEEDS*]->(:Device)-[:DELIVERS]->(:Service)
+    <-[:SUBSCRIBES_TO]-(c:Customer {segment: 'business'}) RETURN count(DISTINCT c)
+
+- qid: I02
+  category: impact
+  difficulty: medium
+  question: If OLT D-0022 fails, how many customers lose service?
+  answer_rule: number
+  gold_cypher: >-
+    MATCH (:Device {id: 'D-0022'})-[:FEEDS*]->(:Device)-[:DELIVERS]->(:Service)
+    <-[:SUBSCRIBES_TO]-(c:Customer) RETURN count(DISTINCT c)
+
+- qid: I03
+  category: impact
+  difficulty: hard
+  question: If core router D-0001 fails, how many ONTs are cut off?
+  answer_rule: number
+  gold_cypher: >-
+    MATCH (:Device {id: 'D-0001'})-[:FEEDS*]->(o:Device {device_type: 'ont'})
+    RETURN count(DISTINCT o)
+
+- qid: I04
+  category: impact
+  difficulty: hard
+  question: Which customers lose service if aggregation switch D-0012 fails?
+  answer_rule: set
+  gold_cypher: >-
+    MATCH (:Device {id: 'D-0012'})-[:FEEDS*]->(:Device)-[:DELIVERS]->(:Service)
+    <-[:SUBSCRIBES_TO]-(c:Customer) RETURN DISTINCT c.id
+
+- qid: I05
+  category: impact
+  difficulty: hard
+  question: >-
+    Taking backup batteries into account, how many customers lose service if the grid
+    supply to the Strijp site fails?
+  answer_rule: number
+  gold_cypher: >-
+    MATCH (s:Site {name: 'Strijp'})
+    WHERE NOT EXISTS { (:EnergySource {source_type: 'battery'})-[:POWERS]->(s) }
+    MATCH (s)-[:CONTAINS]->(:Cabinet)-[:HOUSES]->(:Device)-[:FEEDS*]->(:Device)
+      -[:DELIVERS]->(:Service)<-[:SUBSCRIBES_TO]-(c:Customer)
+    RETURN count(DISTINCT c)
+  notes: Strijp has a backup battery, so the correct answer is 0.
+
+- qid: I06
+  category: impact
+  difficulty: hard
+  question: If the Damrak site loses all power, how many customers lose service?
+  answer_rule: number
+  gold_cypher: >-
+    MATCH (:Site {name: 'Damrak'})-[:CONTAINS]->(:Cabinet)-[:HOUSES]->(:Device)-[:FEEDS*]->
+    (:Device)-[:DELIVERS]->(:Service)<-[:SUBSCRIBES_TO]-(c:Customer)
+    RETURN count(DISTINCT c)
+
+- qid: I07
+  category: impact
+  difficulty: hard
+  question: In which cities would customers lose service if core router D-0003 failed?
+  answer_rule: set
+  gold_cypher: >-
+    MATCH (:Device {id: 'D-0003'})-[:FEEDS*]->(olt:Device {device_type: 'olt'})
+    MATCH (s:Site)-[:CONTAINS]->(:Cabinet)-[:HOUSES]->(olt)
+    WHERE EXISTS { (olt)-[:FEEDS]->(:Device)-[:DELIVERS]->(:Service)<-[:SUBSCRIBES_TO]-(:Customer) }
+    RETURN DISTINCT s.city
+
+- qid: I08
+  category: impact
+  difficulty: hard
+  question: >-
+    How many customers are currently without service because their ONT, or any device
+    upstream of it, is in the failed state?
+  answer_rule: number
+  gold_cypher: >-
+    MATCH (x:Device {status: 'failed'})-[:FEEDS*0..]->(o:Device {device_type: 'ont'})
+    MATCH (o)-[:DELIVERS]->(:Service)<-[:SUBSCRIBES_TO]-(c:Customer)
+    RETURN count(DISTINCT c)
+
+- qid: I09
+  category: impact
+  difficulty: hard
+  question: >-
+    Which customers are served through a device that is currently in maintenance
+    (their ONT or any device upstream of it)?
+  answer_rule: set
+  gold_cypher: >-
+    MATCH (x:Device {status: 'maintenance'})-[:FEEDS*0..]->(o:Device {device_type: 'ont'})
+    MATCH (o)-[:DELIVERS]->(:Service)<-[:SUBSCRIBES_TO]-(c:Customer)
+    RETURN DISTINCT c.id
+
+- qid: I10
+  category: impact
+  difficulty: hard
+  question: Which customers lose service if the Marktplein site loses all power?
+  answer_rule: set
+  gold_cypher: >-
+    MATCH (:Site {name: 'Marktplein'})-[:CONTAINS]->(:Cabinet)-[:HOUSES]->(:Device)-[:FEEDS*]->
+    (:Device)-[:DELIVERS]->(:Service)<-[:SUBSCRIBES_TO]-(c:Customer) RETURN DISTINCT c.id
+  alt_cyphers:
+    - >-
+      MATCH (:Site {name: 'Marktplein', city: 'Rotterdam'})-[:CONTAINS]->(:Cabinet)-[:HOUSES]->
+      (:Device)-[:FEEDS*]->(:Device)-[:DELIVERS]->(:Service)<-[:SUBSCRIBES_TO]-(c:Customer)
+      RETURN DISTINCT c.id
+    - >-
+      MATCH (:Site {name: 'Marktplein', city: 'Den Haag'})-[:CONTAINS]->(:Cabinet)-[:HOUSES]->
+      (:Device)-[:FEEDS*]->(:Device)-[:DELIVERS]->(:Service)<-[:SUBSCRIBES_TO]-(c:Customer)
+      RETURN DISTINCT c.id
+  notes: Ambiguous - Marktplein exists in Rotterdam and Den Haag.
+
+# ------------------------------------------------------------------ unanswerable
+- qid: U01
+  category: unanswerable
+  difficulty: easy
+  question: What is the monthly revenue of customer C-0012?
+  answer_rule: refuse
+  notes: Customers have no revenue or billing data.
+
+- qid: U02
+  category: unanswerable
+  difficulty: easy
+  question: What is the name of customer C-0007?
+  answer_rule: refuse
+  notes: Customers have no name property.
+
+- qid: U03
+  category: unanswerable
+  difficulty: easy
+  question: What is the IP address of device D-0005?
+  answer_rule: refuse
+  notes: Devices have no IP address property.
+
+- qid: U04
+  category: unanswerable
+  difficulty: medium
+  question: What download speed does service V-0001 provide?
+  answer_rule: refuse
+  notes: Services only have a type, no bandwidth.
+
+- qid: U05
+  category: unanswerable
+  difficulty: easy
+  question: Which technician last serviced device D-0022?
+  answer_rule: refuse
+  notes: No technician or maintenance history in the graph.
+
+- qid: U06
+  category: unanswerable
+  difficulty: medium
+  question: When did device D-0064 fail?
+  answer_rule: refuse
+  notes: D-0064 is failed, but there is no failure timestamp. Saying "it is failed, date unknown" is correct.
+
+- qid: U07
+  category: unanswerable
+  difficulty: easy
+  question: What are the GPS coordinates of the Damrak site?
+  answer_rule: refuse
+  notes: Sites have a city but no coordinates.
+
+- qid: U08
+  category: unanswerable
+  difficulty: medium
+  question: Who manufactured cable L-0031?
+  answer_rule: refuse
+  notes: Devices have a vendor, cables do not - tempting to answer with a device vendor.
+
+- qid: U09
+  category: unanswerable
+  difficulty: easy
+  question: How many kWh did the Amsterdam DC consume last month?
+  answer_rule: refuse
+  notes: Only capacity_kw exists, no consumption data.
+
+- qid: U10
+  category: unanswerable
+  difficulty: medium
+  question: Which vendor made device D-0999?
+  answer_rule: refuse
+  notes: There is no device D-0999 (IDs go up to D-0138).
