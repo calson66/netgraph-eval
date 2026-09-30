@@ -1,6 +1,7 @@
 """One small wrapper around the LLM API, so the rest of the code never touches a provider SDK.
 
-- Messages use a neutral format (see `chat` docstring); this file converts to Anthropic or OpenAI.
+- Messages use a neutral format (see `chat` docstring); this file converts to Anthropic or OpenAI
+  format (the OpenAI path also serves OpenAI-compatible APIs such as DeepSeek).
 - Every call returns token usage, latency and cost (prices from configs/pricing.yaml).
 - Switching model or provider = edit configs/models.yaml, no code change.
 """
@@ -62,12 +63,13 @@ def chat(messages: list[dict], system: str = "", tools: list[dict] | None = None
     cfg = load_config("models.yaml")
     model = model or cfg["models"]["main"]
     start = time.perf_counter()
-    if cfg["provider"] == "anthropic":
-        resp = _chat_anthropic(messages, system, tools, model, cfg["defaults"])
-    elif cfg["provider"] == "openai":
-        resp = _chat_openai(messages, system, tools, model, cfg["defaults"])
+    provider = cfg["providers"][cfg["provider"]]
+    if provider["sdk"] == "anthropic":
+        resp = _chat_anthropic(messages, system, tools, model, cfg["defaults"], provider)
+    elif provider["sdk"] == "openai":  # OpenAI itself, or an OpenAI-compatible API like DeepSeek
+        resp = _chat_openai(messages, system, tools, model, cfg["defaults"], provider)
     else:
-        raise ValueError(f"unknown provider {cfg['provider']}")
+        raise ValueError(f"unknown sdk {provider['sdk']}")
     resp.latency_ms = int((time.perf_counter() - start) * 1000)
     resp.model = model
     resp.cost_usd = cost_usd(model, resp.input_tokens, resp.output_tokens)
@@ -99,10 +101,10 @@ def to_anthropic_messages(messages: list[dict]) -> list[dict]:
     return out
 
 
-def _chat_anthropic(messages, system, tools, model, defaults) -> LLMResponse:
+def _chat_anthropic(messages, system, tools, model, defaults, provider) -> LLMResponse:
     import anthropic
 
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    client = anthropic.Anthropic(api_key=os.environ[provider["api_key_env"]])
     kwargs = {"model": model, "max_tokens": defaults["max_tokens"],
               "temperature": defaults["temperature"],
               "messages": to_anthropic_messages(messages)}
@@ -136,11 +138,13 @@ def to_openai_messages(messages: list[dict], system: str) -> list[dict]:
     return out
 
 
-def _chat_openai(messages, system, tools, model, defaults) -> LLMResponse:
+def _chat_openai(messages, system, tools, model, defaults, provider) -> LLMResponse:
     import openai
 
-    client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-    kwargs = {"model": model, "max_completion_tokens": defaults["max_tokens"],
+    client = openai.OpenAI(api_key=os.environ[provider["api_key_env"]],
+                           base_url=provider.get("base_url"))
+    # `max_tokens` (not `max_completion_tokens`) because OpenAI-compatible APIs accept it.
+    kwargs = {"model": model, "max_tokens": defaults["max_tokens"],
               "temperature": defaults["temperature"],
               "messages": to_openai_messages(messages, system)}
     if tools:

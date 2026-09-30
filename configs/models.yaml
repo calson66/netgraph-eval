@@ -1,14 +1,26 @@
 # Which LLM provider/models the experiments use.
 # Every run copies this file's content into its manifest (results/manifests/).
-# Plan: main = cheap model with tool calling; degraded = smaller/older model (Phase 5 model_swap).
-# TODO(user): confirm provider matches the API key you have, and confirm model IDs are still available.
+# Plan: main = model with tool calling; degraded = smaller model of the same family (Phase 5 model_swap).
+# Model list checked on https://api-docs.deepseek.com/quick_start/pricing (2026-09-30).
 
-provider: anthropic          # anthropic | openai
+provider: deepseek           # key into `providers` below
+
+providers:
+  deepseek:
+    sdk: openai              # DeepSeek's API is OpenAI-compatible
+    base_url: https://api.deepseek.com
+    api_key_env: DEEPSEEK_API_KEY
+  openai:
+    sdk: openai
+    api_key_env: OPENAI_API_KEY
+  anthropic:
+    sdk: anthropic
+    api_key_env: ANTHROPIC_API_KEY
 
 models:
-  main: claude-haiku-4-5-20251001
-  degraded: TODO-pick-smaller-or-older-model   # [TODO: verify against provider's current model list]
-  judge: claude-haiku-4-5-20251001
+  main: deepseek-v4-pro      # DeepSeek-V4-Pro-0813
+  degraded: deepseek-flash   # DeepSeek-V4.1-Flash: smaller and cheaper, used for model_swap
+  judge: deepseek-v4-pro     # same as main; self-judging bias is noted as a limitation
 
 defaults:
   max_tokens: 1024

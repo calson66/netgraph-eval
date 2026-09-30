@@ -71,7 +71,7 @@ def test_rows_are_capped(driver):
 @pytest.mark.llm
 def test_llm_call_records_tokens():
     cfg = llm.load_config("models.yaml")
-    key = "ANTHROPIC_API_KEY" if cfg["provider"] == "anthropic" else "OPENAI_API_KEY"
+    key = cfg["providers"][cfg["provider"]]["api_key_env"]
     if not os.environ.get(key):
         pytest.skip(f"{key} not set")
     r = llm.chat([{"role": "user", "content": "Reply with the single word: pong"}])

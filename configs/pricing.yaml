@@ -1,11 +1,15 @@
 # Price snapshot used to compute cost_usd. USD per 1M tokens.
-# Prices change: re-check the provider's pricing page and update snapshot_date before the main experiment.
+# DeepSeek charges less off-peak and for cache hits. For simplicity we always use the PEAK,
+# CACHE-MISS price, so every reported cost is an upper bound.
 snapshot_date: "2026-09-30"
-source: "[TODO: verify on provider pricing page]"
+source: "https://api-docs.deepseek.com/quick_start/pricing (checked 2026-09-30)"
 
 models:
-  claude-haiku-4-5-20251001:
-    input_per_mtok: 1.00    # [TODO: verify]
-    output_per_mtok: 5.00   # [TODO: verify]
+  deepseek-v4-pro:
+    input_per_mtok: 1.32     # peak, cache miss (off-peak 0.66)
+    output_per_mtok: 3.96    # peak (off-peak 1.98)
+  deepseek-flash:
+    input_per_mtok: 0.30     # peak, cache miss (off-peak 0.15)
+    output_per_mtok: 1.20    # peak (off-peak 0.60)
 
 budget_usd: 20.0
