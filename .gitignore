@@ -1,0 +1,20 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# neo4j docker volume (local only)
+neo4j_data/
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,15 @@
+# Which LLM provider/models the experiments use.
+# Every run copies this file's content into its manifest (results/manifests/).
+# Plan: main = cheap model with tool calling; degraded = smaller/older model (Phase 5 model_swap).
+# TODO(user): confirm provider matches the API key you have, and confirm model IDs are still available.
+
+provider: anthropic          # anthropic | openai
+
+models:
+  main: claude-haiku-4-5-20251001
+  degraded: TODO-pick-smaller-or-older-model   # [TODO: verify against provider's current model list]
+  judge: claude-haiku-4-5-20251001
+
+defaults:
+  max_tokens: 1024
+  temperature: 0.0

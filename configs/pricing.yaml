@@ -1,0 +1,11 @@
+# Price snapshot used to compute cost_usd. USD per 1M tokens.
+# Prices change: re-check the provider's pricing page and update snapshot_date before the main experiment.
+snapshot_date: "2026-09-30"
+source: "[TODO: verify on provider pricing page]"
+
+models:
+  claude-haiku-4-5-20251001:
+    input_per_mtok: 1.00    # [TODO: verify]
+    output_per_mtok: 5.00   # [TODO: verify]
+
+budget_usd: 20.0

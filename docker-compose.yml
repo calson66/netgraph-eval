@@ -1,0 +1,19 @@
+# Local Neo4j 5 Community for NetGraph-Eval.
+# Password comes from .env (NEO4J_PASSWORD). Browser: http://localhost:7474
+services:
+  neo4j:
+    image: neo4j:5-community
+    container_name: netgraph-neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD}
+      NEO4J_server_memory_heap_max__size: 1G
+    volumes:
+      - ./neo4j_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20

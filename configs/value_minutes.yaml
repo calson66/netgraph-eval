@@ -1,0 +1,10 @@
+# ASSUMPTION, not measured: minutes an analyst would need to answer each category by hand.
+# Used only for the Phase 5c value metrics (net_value_minutes, value_per_1k_tokens).
+lookup: 2
+filter_agg: 5
+multi_hop: 8
+impact: 15
+unanswerable: 3
+
+# Penalty weight for a wrong answer that was not escalated to a human.
+wrong_unescalated_penalty: 0.5
