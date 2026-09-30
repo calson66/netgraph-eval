@@ -28,6 +28,7 @@ packages = ["src/netgraph"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]  # macOS may hide .venv .pth files, which Python 3.12.14 then skips
 markers = [
     "neo4j: needs a running Neo4j (docker compose up -d)",
     "llm: makes a real (paid) LLM API call",
