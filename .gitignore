@@ -18,3 +18,5 @@ neo4j_data/
 .DS_Store
 .idea/
 .vscode/
+
+CLAUDE.md
