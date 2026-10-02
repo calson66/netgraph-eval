@@ -17,6 +17,7 @@ load_dotenv()
 
 TIMEOUT_S = 5
 MAX_ROWS = 50
+MAX_ENUM_VALUES = 10  # get_schema lists the values of string properties with at most this many
 
 # Neo4j Community has no role-based access control, so we cannot create a real read-only user.
 # Instead: (1) reject write keywords here, (2) run everything in a read transaction.
@@ -30,6 +31,7 @@ def get_driver() -> Driver:
     return GraphDatabase.driver(
         os.environ.get("NEO4J_URI", "bolt://localhost:7687"),
         auth=(os.environ.get("NEO4J_USER", "neo4j"), os.environ["NEO4J_PASSWORD"]),
+        notifications_min_severity="OFF",  # silence deprecation warnings from db.schema.*
     )
 
 
@@ -108,8 +110,22 @@ def get_schema(driver: Driver) -> dict:
         if row["propertyName"]:
             rels[rel].add(row["propertyName"])
 
+    # For string properties with few distinct values, list the values (e.g. Device.status),
+    # so the model does not have to guess spellings like 'olt' vs 'OLT'.
+    values = {}
+    with driver.session() as session:
+        for label, props in sorted(nodes.items()):
+            for prop in sorted(props):
+                vals = session.run(
+                    f"MATCH (n:`{label}`) WHERE n.`{prop}` IS NOT NULL "
+                    f"WITH DISTINCT n.`{prop}` AS v LIMIT {MAX_ENUM_VALUES + 1} RETURN collect(v)"
+                ).single()[0]
+                if len(vals) <= MAX_ENUM_VALUES and all(isinstance(v, str) for v in vals):
+                    values[f"{label}.{prop}"] = sorted(vals)
+
     return {
         "nodes": {k: sorted(v) for k, v in sorted(nodes.items())},
         "relationships": {k: sorted(v) for k, v in sorted(rels.items())},
         "patterns": sorted(f"(:{p['src']})-[:{p['rel']}]->(:{p['dst']})" for p in patterns),
+        "values": values,
     }

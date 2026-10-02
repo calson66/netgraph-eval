@@ -138,6 +138,15 @@ def to_openai_messages(messages: list[dict], system: str) -> list[dict]:
     return out
 
 
+def _parse_args(raw: str | None) -> dict:
+    # Malformed tool arguments are passed on (not raised) so the agent can report the error.
+    try:
+        args = json.loads(raw or "{}")
+        return args if isinstance(args, dict) else {"_raw": raw}
+    except json.JSONDecodeError:
+        return {"_raw": raw}
+
+
 def _chat_openai(messages, system, tools, model, defaults, provider) -> LLMResponse:
     import openai
 
@@ -149,8 +158,10 @@ def _chat_openai(messages, system, tools, model, defaults, provider) -> LLMRespo
               "messages": to_openai_messages(messages, system)}
     if tools:
         kwargs["tools"] = [{"type": "function", "function": t} for t in tools]
+    if provider.get("extra_body"):
+        kwargs["extra_body"] = provider["extra_body"]
     r = client.chat.completions.create(**kwargs)
     msg = r.choices[0].message
-    calls = [ToolCall(tc.id, tc.function.name, json.loads(tc.function.arguments or "{}"))
+    calls = [ToolCall(tc.id, tc.function.name, _parse_args(tc.function.arguments))
              for tc in (msg.tool_calls or [])]
     return LLMResponse(msg.content, calls, r.usage.prompt_tokens, r.usage.completion_tokens)

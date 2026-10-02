@@ -10,6 +10,9 @@ providers:
     sdk: openai              # DeepSeek's API is OpenAI-compatible
     base_url: https://api.deepseek.com
     api_key_env: DEEPSEEK_API_KEY
+    # V4 models think by default (hidden reasoning, billed as output, temperature ignored).
+    # We switch it off: deterministic-ish decoding, lower cost, no hidden reasoning to handle.
+    extra_body: {thinking: {type: disabled}}
   openai:
     sdk: openai
     api_key_env: OPENAI_API_KEY

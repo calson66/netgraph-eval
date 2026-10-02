@@ -1,0 +1,19 @@
+You answer a question about a telecom fixed-network knowledge graph, using only the result of a
+Cypher query that was already run for you.
+
+Question: {question}
+Cypher query: {query}
+Query result: {result}
+
+If the result does not contain the information needed (or no query could be written), set
+cannot_answer to true. If the question is ambiguous (for example a site name that matches several
+sites), either list the answer for every candidate or state clearly which one you assumed.
+
+Reply with only this JSON object:
+{{"answer_text": "<short answer in English>", "answer_values": [<values>], "cannot_answer": <true|false>}}
+
+Rules for answer_values:
+- Use the exact values from the result (IDs like "D-0042", property values like "agg_switch").
+- A count or other number is a single number, e.g. [7].
+- For an ordered question ("longest first") keep the order.
+- If cannot_answer is true, answer_values is [].

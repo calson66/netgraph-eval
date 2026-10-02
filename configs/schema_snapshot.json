@@ -1,0 +1,122 @@
+{
+ "nodes": {
+  "Cabinet": [
+   "cabinet_type",
+   "id"
+  ],
+  "Cable": [
+   "id",
+   "install_year",
+   "length_m",
+   "medium"
+  ],
+  "Customer": [
+   "area_code",
+   "id",
+   "segment"
+  ],
+  "Device": [
+   "device_type",
+   "id",
+   "install_year",
+   "status",
+   "vendor"
+  ],
+  "EnergySource": [
+   "capacity_kw",
+   "id",
+   "source_type"
+  ],
+  "Service": [
+   "id",
+   "service_type"
+  ],
+  "Site": [
+   "city",
+   "id",
+   "name",
+   "site_type"
+  ]
+ },
+ "relationships": {
+  "CONNECTS": [],
+  "CONTAINS": [],
+  "DELIVERS": [],
+  "FEEDS": [],
+  "HOUSES": [],
+  "POWERS": [],
+  "SUBSCRIBES_TO": []
+ },
+ "patterns": [
+  "(:Cabinet)-[:HOUSES]->(:Device)",
+  "(:Cable)-[:CONNECTS]->(:Device)",
+  "(:Customer)-[:SUBSCRIBES_TO]->(:Service)",
+  "(:Device)-[:DELIVERS]->(:Service)",
+  "(:Device)-[:FEEDS]->(:Device)",
+  "(:EnergySource)-[:POWERS]->(:Site)",
+  "(:Site)-[:CONTAINS]->(:Cabinet)"
+ ],
+ "values": {
+  "Cabinet.cabinet_type": [
+   "indoor_rack",
+   "street_cabinet"
+  ],
+  "Cable.medium": [
+   "copper",
+   "fiber"
+  ],
+  "Customer.area_code": [
+   "010",
+   "020",
+   "030",
+   "040",
+   "050",
+   "070"
+  ],
+  "Customer.segment": [
+   "business",
+   "consumer"
+  ],
+  "Device.device_type": [
+   "agg_switch",
+   "core_router",
+   "olt",
+   "ont"
+  ],
+  "Device.status": [
+   "active",
+   "failed",
+   "maintenance"
+  ],
+  "Device.vendor": [
+   "Cisco",
+   "Huawei",
+   "Nokia",
+   "ZTE",
+   "Zyxel"
+  ],
+  "EnergySource.source_type": [
+   "battery",
+   "generator",
+   "grid"
+  ],
+  "Service.service_type": [
+   "business_vpn",
+   "internet",
+   "tv"
+  ],
+  "Site.city": [
+   "Amsterdam",
+   "Den Haag",
+   "Eindhoven",
+   "Groningen",
+   "Rotterdam",
+   "Utrecht"
+  ],
+  "Site.site_type": [
+   "central_office",
+   "datacenter",
+   "street_site"
+  ]
+ }
+}
