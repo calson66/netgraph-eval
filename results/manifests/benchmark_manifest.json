@@ -1,0 +1,6 @@
+{
+  "file": "data/benchmark.jsonl",
+  "sha256": "7fcf9f8feeed66c1eec25e250140cf739ff693352b8b8d036db58c719b157079",
+  "n_questions": 50,
+  "frozen_on": "2026-10-02"
+}
