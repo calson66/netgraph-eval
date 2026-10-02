@@ -57,7 +57,6 @@ data/      benchmark.jsonl, review_log.csv, human_ratings.csv
 src/       netgraph package: db, llm, graph_gen, agent, baseline, trace, grading, judge, analysis
 scripts/   build_graph.py, run_experiment.py, make_report_assets.py
 results/   raw/ (append-only traces), tables/, figures/, manifests/
-docs/      report.md, metric_taxonomy.md, schema.md, spec.md
+docs/      report.md, metric_taxonomy.md, schema.md, benchmark_review.md
 ```
 
-Progress is tracked in [STATUS.md](STATUS.md).
