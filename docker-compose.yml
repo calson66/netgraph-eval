@@ -4,6 +4,7 @@ services:
   neo4j:
     image: neo4j:5-community
     container_name: netgraph-neo4j
+    restart: unless-stopped   # come back up whenever Docker Desktop starts
     ports:
       - "7474:7474"
       - "7687:7687"
