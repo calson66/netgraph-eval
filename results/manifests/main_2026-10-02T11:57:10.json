@@ -1,0 +1,69 @@
+{
+  "exp": "main",
+  "started": "2026-10-02T11:57:10.137777+00:00",
+  "args": {
+    "exp": "main",
+    "configs": "direct,agent",
+    "qids": "",
+    "pilot": false,
+    "repeats": 3,
+    "model": "main",
+    "condition": "normal",
+    "agent_prompt": "agent_v1",
+    "direct_prompt": "direct_v1"
+  },
+  "git_commit": "0d87167a20afa6022f5ec856aa6d985c9538c588",
+  "benchmark_sha256": "7fcf9f8feeed66c1eec25e250140cf739ff693352b8b8d036db58c719b157079",
+  "models_yaml": {
+    "provider": "deepseek",
+    "providers": {
+      "deepseek": {
+        "sdk": "openai",
+        "base_url": "https://api.deepseek.com",
+        "api_key_env": "DEEPSEEK_API_KEY",
+        "extra_body": {
+          "thinking": {
+            "type": "disabled"
+          }
+        }
+      },
+      "openai": {
+        "sdk": "openai",
+        "api_key_env": "OPENAI_API_KEY"
+      },
+      "anthropic": {
+        "sdk": "anthropic",
+        "api_key_env": "ANTHROPIC_API_KEY"
+      }
+    },
+    "models": {
+      "main": "deepseek-v4-pro",
+      "degraded": "deepseek-flash",
+      "judge": "deepseek-v4-pro"
+    },
+    "defaults": {
+      "max_tokens": 1024,
+      "temperature": 0.0
+    }
+  },
+  "pricing_yaml": {
+    "snapshot_date": "2026-09-30",
+    "source": "https://api-docs.deepseek.com/quick_start/pricing (checked 2026-09-30)",
+    "models": {
+      "deepseek-v4-pro": {
+        "input_per_mtok": 1.32,
+        "output_per_mtok": 3.96
+      },
+      "deepseek-flash": {
+        "input_per_mtok": 0.3,
+        "output_per_mtok": 1.2
+      }
+    },
+    "budget_usd": 20.0
+  },
+  "prompts": {
+    "agent_v1.txt": "You answer questions about a telecom fixed-network knowledge graph stored in Neo4j.\n\nYou have two tools:\n- get_schema(): node labels, properties, relationship patterns and the allowed values of\n  categorical properties.\n- run_cypher(query): runs a READ-ONLY Cypher query and returns at most 50 rows.\n\nHow to work:\n1. Call get_schema first, so you use only labels, relationships and property values that exist.\n2. Write a Cypher query and run it. Read the result.\n3. If the query fails or returns an unexpected empty result, inspect the error, fix the query and\n   try again. You can run at most 4 queries.\n4. If the graph does not contain the information needed, do not guess: say so.\n5. If the question is ambiguous (for example a site name that matches several sites), either list\n   the answer for every candidate or state clearly which one you assumed.\n\nWhen you are done, reply WITHOUT calling a tool, with only this JSON object:\n{\"answer_text\": \"<short answer in English>\", \"answer_values\": [<values>], \"cannot_answer\": <true|false>}\n\nRules for answer_values:\n- Use the exact values from the database (IDs like \"D-0042\", property values like \"agg_switch\").\n- A count or other number is a single number, e.g. [7].\n- For an ordered question (\"longest first\") keep the order.\n- If cannot_answer is true, answer_values is [].\n",
+    "direct_answer_v1.txt": "You answer a question about a telecom fixed-network knowledge graph, using only the result of a\nCypher query that was already run for you.\n\nQuestion: {question}\nCypher query: {query}\nQuery result: {result}\n\nIf the result does not contain the information needed (or no query could be written), set\ncannot_answer to true. If the question is ambiguous (for example a site name that matches several\nsites), either list the answer for every candidate or state clearly which one you assumed.\n\nReply with only this JSON object:\n{{\"answer_text\": \"<short answer in English>\", \"answer_values\": [<values>], \"cannot_answer\": <true|false>}}\n\nRules for answer_values:\n- Use the exact values from the result (IDs like \"D-0042\", property values like \"agg_switch\").\n- A count or other number is a single number, e.g. [7].\n- For an ordered question (\"longest first\") keep the order.\n- If cannot_answer is true, answer_values is [].\n",
+    "direct_cypher_v1.txt": "You translate questions about a telecom fixed-network knowledge graph into one Neo4j Cypher query.\n\nGraph schema (labels, properties, relationship patterns, allowed values of categorical properties):\n{schema}\n\nWrite ONE read-only Cypher query that answers the question. Reply with only the query, no\nexplanation and no code fences. If the graph does not contain the information needed, reply with\nexactly: NO_QUERY\n"
+  }
+}

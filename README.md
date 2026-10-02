@@ -13,7 +13,24 @@ on a small Neo4j knowledge graph that mimics a fixed telecom network. The projec
 > and is loosely inspired by public project descriptions mentioning a "fixed-network knowledge graph".
 > It contains no real network or customer data.
 
-_Results table and figures will appear here once the experiments are run._
+## Main result (50 questions × 3 repeats per config, DeepSeek-V4-Pro, temperature 0)
+
+| | one-shot `direct` | ReAct `agent` |
+|---|---|---|
+| Answer accuracy (95% CI) | 0.81 [0.71, 0.91] | **0.96** [0.91, 1.00] |
+| … on `impact` questions (variable-length paths) | 0.37 | **0.90** |
+| … on `multi_hop` questions | 0.70 | **0.90** |
+| Correct in all 3 repeats (pass^3) | 0.76 | 0.94 |
+| Avg tokens per run | 1,098 | 4,938 |
+| Cost per successful task (USD, peak price) | **0.0020** | 0.0075 (3.7×) |
+| Failed runs: query generation / trajectory / answer synthesis | 28 / 0 / 0 | 1 / 4 / 1 |
+
+CIs: bootstrap over questions. Full table: `results/tables/main.csv`. Failure stages are assigned
+by heuristic rules (`src/netgraph/grading.py`). Regenerate everything with
+`uv run python scripts/make_report_assets.py`.
+
+![Failure stages](results/figures/failure_stages.png)
+![Accuracy vs cost](results/figures/accuracy_vs_cost.png)
 
 ## Quick start
 
