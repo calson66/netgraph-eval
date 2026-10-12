@@ -73,3 +73,24 @@ def test_failure_trajectory_drift_and_limit():
     assert grade(question, t(["ZTE"], queries=drift))["failure_stage"] == "trajectory"
     g = grade(question, t([], queries=[rec(rows=[])], reason="max_steps"))
     assert g["failure_stage"] == "trajectory"
+
+
+def test_schema_changed_condition_uses_renamed_schema():
+    from netgraph.grading import schema_sets_for, schema_valid
+    old = "MATCH (a:Device)-[:FEEDS]->(b:Device) WHERE b.status = 'failed' RETURN a.id"
+    new = "MATCH (a:Device)-[:UPLINKS_TO]->(b:Device) WHERE b.op_state = 'failed' RETURN a.id"
+    assert schema_valid(old, schema_sets_for("normal"))
+    assert not schema_valid(old, schema_sets_for("schema_changed"))
+    assert schema_valid(new, schema_sets_for("schema_changed"))
+
+
+def test_escalation_rule():
+    import pandas as pd
+
+    from netgraph.analysis import escalate
+    df = pd.DataFrame({"last_query_error": [True, False, False, False, False],
+                       "cannot_answer": [False, False, True, False, False],
+                       "last_query_empty": [False, True, True, False, False],
+                       "hit_limit": [False, False, False, True, False],
+                       "faithful": [True, True, True, True, False]})
+    assert escalate(df).tolist() == [True, True, False, True, True]

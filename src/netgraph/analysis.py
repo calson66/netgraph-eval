@@ -135,3 +135,114 @@ def plot_accuracy_vs_cost(graded: pd.DataFrame, path) -> None:
     fig.tight_layout()
     fig.savefig(path, dpi=160)
     plt.close(fig)
+
+
+# ---------- Phase 5: label-free monitoring signals ----------
+
+SIGNALS = ["query_error_rate", "empty_result_rate", "hit_limit_rate", "avg_llm_calls",
+           "avg_tokens", "unfaithful_rate", "refusal_rate"]
+
+
+def signals(df: pd.DataFrame) -> dict:
+    """Signals that need no gold answer, so they could be computed on live traffic."""
+    n_q = max(df["n_queries"].sum(), 1)
+    return {
+        "query_error_rate": df["n_query_errors"].sum() / n_q,
+        "empty_result_rate": df["n_empty_results"].sum() / n_q,
+        "hit_limit_rate": df["hit_limit"].mean(),
+        "avg_llm_calls": df["n_llm_calls"].mean(),
+        "avg_tokens": df["tokens"].mean(),
+        "unfaithful_rate": (df["faithful"] == False).mean(),  # noqa: E712 (None = not judged)
+        "refusal_rate": df["cannot_answer"].mean(),
+    }
+
+
+def degradation_table(normal: pd.DataFrame, degraded: pd.DataFrame) -> pd.DataFrame:
+    """Rows = conditions. A signal alarms if it leaves mean ± 2·SD of the normal repeats."""
+    per_repeat = pd.DataFrame([signals(g) for _, g in normal.groupby("repeat_idx")])
+    mean, sd = per_repeat.mean(), per_repeat.std(ddof=1)
+    acc_normal = normal.groupby("repeat_idx")["answer_correct"].mean()
+    rows = [{"condition": "normal (mean of 3 repeats)", "runs": len(normal),
+             "accuracy": round(acc_normal.mean(), 3), "accuracy_change": 0.0,
+             **{s: round(mean[s], 3) for s in SIGNALS},
+             **{f"{s}_band": f"±{2 * sd[s]:.3f}" for s in SIGNALS}}]
+    for cond, g in degraded.groupby(["config", "condition"], sort=False):
+        sig = signals(g)
+        row = {"condition": f"{cond[1]} ({cond[0]})", "runs": len(g),
+               "accuracy": round(g["answer_correct"].mean(), 3),
+               "accuracy_change": round(g["answer_correct"].mean() - acc_normal.mean(), 3)}
+        for s in SIGNALS:
+            row[s] = round(sig[s], 3)
+            alarm = abs(sig[s] - mean[s]) > 2 * sd[s] if sd[s] > 0 else sig[s] != mean[s]
+            row[f"{s}_alarm"] = bool(alarm)
+        row["n_alarms"] = sum(row[f"{s}_alarm"] for s in SIGNALS)
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+# ---------- Phase 5: escalation and value ----------
+
+def escalate(df: pd.DataFrame) -> pd.Series:
+    """Hand the run to a human if any label-free warning sign fires."""
+    return (df["last_query_error"]
+            | (~df["cannot_answer"] & df["last_query_empty"])
+            | df["hit_limit"]
+            | (df["faithful"] == False))  # noqa: E712
+
+
+def value_row(df: pd.DataFrame, minutes: dict) -> dict:
+    esc = escalate(df)
+    wrong = ~df["answer_correct"]
+    mins = df["category"].map(minutes)
+    net = mins[df["answer_correct"]].sum() - minutes["wrong_unescalated_penalty"] * mins[
+        wrong & ~esc].sum()
+    tokens, n_ok = df["tokens"].sum(), int(df["answer_correct"].sum())
+    return {
+        "runs": len(df),
+        "accuracy": round(df["answer_correct"].mean(), 3),
+        "tokens_per_success": round(tokens / n_ok) if n_ok else None,
+        "cost_per_success_usd": round(df["cost_usd"].sum() / n_ok, 5) if n_ok else None,
+        "net_value_minutes_per_run": round(net / len(df), 2),
+        "value_per_1k_tokens": round(net / (tokens / 1000), 3),
+        "escalation_rate": round(esc.mean(), 3),
+        "escalation_precision": round((esc & wrong).sum() / esc.sum(), 3) if esc.sum() else None,
+        "escalation_recall": round((esc & wrong).sum() / wrong.sum(), 3) if wrong.sum() else None,
+        "cost_per_run_usd": round(df["cost_usd"].mean(), 5),
+    }
+
+
+ROUTE_TO_AGENT = {"multi_hop", "impact"}
+
+
+def routed(main: pd.DataFrame) -> pd.DataFrame:
+    """Illustrative oracle router: category is known in advance (it would need a classifier)."""
+    pick = main["category"].isin(ROUTE_TO_AGENT).map({True: "agent", False: "direct"})
+    return main[main["config"] == pick].assign(config="router (oracle category)")
+
+
+def decision_table(main: pd.DataFrame, minutes: dict) -> pd.DataFrame:
+    frames = [g for _, g in main.groupby("config", sort=False)] + [routed(main)]
+    return pd.DataFrame([{"config": f["config"].iloc[0], **value_row(f, minutes)}
+                         for f in frames])
+
+
+def plot_value_vs_cost(decision: pd.DataFrame, path) -> None:
+    fig, ax = plt.subplots(figsize=(6, 4), facecolor=COLORS["surface"])
+    colors = [CONFIG_COLOR.get(c, COLORS["series"][2]) for c in decision["config"]]
+    for (_, r), color in zip(decision.iterrows(), colors, strict=True):
+        x, y = r["cost_per_run_usd"] * 1000, r["net_value_minutes_per_run"]
+        ax.scatter(x, y, s=80, color=color, zorder=3, edgecolor=COLORS["surface"], linewidth=2)
+        below = r["config"].startswith("router")       # avoid colliding with the agent label
+        ax.annotate(f"{r['config']}\n{y:.1f} min/run, acc {r['accuracy']:.0%}", (x, y),
+                    textcoords="offset points", xytext=(0, -34) if below else (10, -6),
+                    ha="center" if below else "left", fontsize=9, color=COLORS["text"])
+    ax.set_xlim(0, decision["cost_per_run_usd"].max() * 1000 * 1.8)
+    ax.set_ylim(0, decision["net_value_minutes_per_run"].max() * 1.25)
+    ax.set_xlabel("cost per run (USD × 10⁻³, peak price)")
+    ax.set_ylabel("net analyst minutes saved per run (assumed)")
+    ax.set_title("Value vs cost (minutes are an assumption, see configs/)", loc="left",
+                 fontsize=11, color=COLORS["text"])
+    _style(ax)
+    fig.tight_layout()
+    fig.savefig(path, dpi=160)
+    plt.close(fig)

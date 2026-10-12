@@ -1,8 +1,9 @@
 """Rebuild every table and figure from the raw traces (results/raw/) — nothing is hand-edited.
 
 Steps: load traces -> LLM-judge any run not yet judged (cached, append-only) -> grade ->
-write results/tables/*.csv and results/figures/*.png.
-Usage: uv run python scripts/make_report_assets.py [--exp main] [--no-judge]
+write results/tables/*.csv and results/figures/*.png. Phase 5 tables are added when
+results/raw/degradation.jsonl exists.
+Usage: uv run python scripts/make_report_assets.py [--no-judge]
 """
 
 import argparse
@@ -10,7 +11,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from netgraph import analysis
+from netgraph import analysis, llm
 from netgraph.benchmark import load_benchmark
 from netgraph.grading import grade
 from netgraph.judge import judge_all
@@ -36,23 +37,47 @@ def graded_frame(exp: str, use_judge: bool) -> pd.DataFrame:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--exp", default="main")
     ap.add_argument("--no-judge", action="store_true")
     args = ap.parse_args()
+    use_judge = not args.no_judge
     TABLES.mkdir(parents=True, exist_ok=True)
     FIGURES.mkdir(parents=True, exist_ok=True)
+    def show():
+        return pd.option_context("display.width", 220, "display.max_columns", 40)
 
-    graded = graded_frame(args.exp, use_judge=not args.no_judge)
-    graded.to_csv(TABLES / f"graded_{args.exp}.csv", index=False)
-    table = analysis.main_table(graded)
-    table.to_csv(TABLES / f"{args.exp}.csv", index=False)
-    analysis.plot_failure_stages(graded, FIGURES / "failure_stages.png")
-    analysis.plot_accuracy_vs_cost(graded, FIGURES / "accuracy_vs_cost.png")
-
-    with pd.option_context("display.width", 200, "display.max_columns", 30):
+    # Phase 4: main experiment
+    main_df = graded_frame("main", use_judge)
+    main_df.to_csv(TABLES / "graded_main.csv", index=False)
+    table = analysis.main_table(main_df)
+    table.to_csv(TABLES / "main.csv", index=False)
+    analysis.plot_failure_stages(main_df, FIGURES / "failure_stages.png")
+    analysis.plot_accuracy_vs_cost(main_df, FIGURES / "accuracy_vs_cost.png")
+    with show():
         print(table[table["category"] == "ALL"].T.to_string(header=False))
-    print(f"\nJudge cost: ${graded['judge_cost_usd'].sum():.4f}; "
-          f"runs cost: ${graded['cost_usd'].sum():.4f}")
+
+    # Phase 5c: value and decision table (from the main experiment)
+    minutes = llm.load_config("value_minutes.yaml")
+    decision = analysis.decision_table(main_df, minutes)
+    decision.to_csv(TABLES / "decision.csv", index=False)
+    analysis.plot_value_vs_cost(decision, FIGURES / "value_vs_cost.png")
+    with show():
+        print("\n" + decision.to_string(index=False))
+
+    # Phase 5a/b: degradation detection
+    total_judge = main_df["judge_cost_usd"].sum()
+    total_runs = main_df["cost_usd"].sum()
+    if (RAW / "degradation.jsonl").exists():
+        deg = graded_frame("degradation", use_judge)
+        deg.to_csv(TABLES / "graded_degradation.csv", index=False)
+        normal = main_df[main_df["config"] == "agent"]
+        detection = analysis.degradation_table(normal, deg)
+        detection.to_csv(TABLES / "degradation_detection.csv", index=False)
+        with show():
+            print("\n" + detection.T.to_string(header=False))
+        total_judge += deg["judge_cost_usd"].sum()
+        total_runs += deg["cost_usd"].sum()
+
+    print(f"\nRun cost ${total_runs:.4f}; judge cost ${total_judge:.4f}")
 
 
 if __name__ == "__main__":

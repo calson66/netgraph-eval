@@ -1,0 +1,6 @@
+condition,runs,accuracy,accuracy_change,query_error_rate,empty_result_rate,hit_limit_rate,avg_llm_calls,avg_tokens,unfaithful_rate,refusal_rate,query_error_rate_band,empty_result_rate_band,hit_limit_rate_band,avg_llm_calls_band,avg_tokens_band,unfaithful_rate_band,refusal_rate_band,query_error_rate_alarm,empty_result_rate_alarm,hit_limit_rate_alarm,avg_llm_calls_alarm,avg_tokens_alarm,unfaithful_rate_alarm,refusal_rate_alarm,n_alarms
+normal (mean of 3 repeats),150,0.96,0.0,0.0,0.104,0.08,3.807,4938.287,0.0,0.22,±0.000,±0.059,±0.040,±0.061,±177.172,±0.000,±0.040,,,,,,,,
+prompt_degraded (agent),50,0.9,-0.06,0.0,0.078,0.14,4.0,5199.52,0.0,0.24,,,,,,,,False,False,True,True,True,False,False,3.0
+model_swap (agent),50,0.94,-0.02,0.0,0.086,0.06,3.78,5205.7,0.0,0.2,,,,,,,,False,False,False,False,True,False,False,1.0
+schema_changed (agent),50,0.82,-0.14,0.0,0.155,0.24,4.2,7137.44,0.0,0.32,,,,,,,,False,False,True,True,True,False,True,4.0
+schema_changed (direct),50,0.6,-0.36,0.025,0.3,0.0,2.0,1099.9,0.0,0.32,,,,,,,,True,True,True,True,True,False,True,6.0

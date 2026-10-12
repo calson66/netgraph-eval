@@ -92,6 +92,15 @@ def load_schema_sets(schema: dict | None = None) -> dict[str, set]:
     return {"labels": set(schema["nodes"]), "rels": set(schema["relationships"]), "props": props}
 
 
+def schema_sets_for(condition: str) -> dict[str, set]:
+    """The schema that was live during a run (schema_changed renames one property and one rel)."""
+    sets = load_schema_sets()
+    if condition == "schema_changed":       # must match scripts/schema_change.py
+        sets["props"] = (sets["props"] - {"status"}) | {"op_state"}
+        sets["rels"] = (sets["rels"] - {"FEEDS"}) | {"UPLINKS_TO"}
+    return sets
+
+
 def schema_valid(query: str, schema_sets: dict[str, set]) -> bool:
     used = schema_elements(query)
     return all(used[k] <= schema_sets[k] for k in used)
@@ -108,7 +117,7 @@ def flat(elements: dict[str, set]) -> set:
 # ---------- one trace ----------
 
 def grade(q: Question, t: Trace, schema_sets: dict[str, set] | None = None) -> dict:
-    schema_sets = schema_sets or load_schema_sets()
+    schema_sets = schema_sets or schema_sets_for(t.condition)
     queries = t.queries
     last = queries[-1] if queries else None
     last_ok = next((r for r in reversed(queries) if r.status == "ok"), None)
@@ -138,6 +147,8 @@ def grade(q: Question, t: Trace, schema_sets: dict[str, set] | None = None) -> d
         # trajectory
         "n_steps": len(t.steps),
         "n_queries": len(queries),
+        "n_query_errors": sum(r.status != "ok" for r in queries),
+        "n_empty_results": sum(r.status == "ok" and not r.rows for r in queries),
         "n_llm_calls": t.n_llm_calls,
         "repeated_query": len(normalized) != len(set(normalized)),
         "hit_limit": t.terminated_reason == "max_steps"
