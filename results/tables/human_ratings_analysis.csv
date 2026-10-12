@@ -1,0 +1,11 @@
+human,automatic,n,spearman_rho,p_value
+correctness,answer_correct,30,0.885,0.0
+correctness,faithful,30,-0.179,0.3448
+correctness,n_llm_calls,30,0.122,0.5211
+correctness,tokens,30,-0.069,0.7174
+correctness,cost_usd,30,-0.064,0.735
+usefulness,answer_correct,30,0.821,0.0
+usefulness,faithful,30,-0.196,0.2983
+usefulness,n_llm_calls,30,0.263,0.1604
+usefulness,tokens,30,0.114,0.5502
+usefulness,cost_usd,30,0.118,0.5342

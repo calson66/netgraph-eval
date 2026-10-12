@@ -131,12 +131,30 @@ reported together with cost.
 
 ## 6. Manual review (exploratory, single rater)
 
-Two sheets are prepared for one reviewer: 10 failed runs to check the failure-stage rule
-(`data/failure_spotcheck.csv`) and 30 blinded runs (15 wrong, 15 correct, both configs, all
-categories) rated 0–2 for correctness and usefulness (`data/human_ratings.csv`).
-`scripts/analyze_reviews.py` computes rule agreement, Spearman correlations of the ratings with
-automatic metrics, and judge–human agreement. **Status: the sheets are not yet filled in, so no
-human-agreement numbers are reported here.**
+One reviewer checked two samples (`scripts/analyze_reviews.py` → `results/tables/human_ratings_analysis.csv`).
+
+**Failure-stage rule, 10 failed runs** (`data/failure_spotcheck.csv`): the reviewer agreed with the
+rule on **8/10**. The two disagreements show two blind spots of the heuristic. (1) I07, agent: the
+rule says *trajectory* because the query limit was hit, but the root cause was a wrong path (the
+query required the service-delivering ONT to sit in a cabinet) repeated twice — a limit hit can
+mask a query-generation error. (2) M06, direct: the rule says *query generation*, but the query
+invented a `Customer–CONNECTS–Cable` pattern; every name exists, so the name-only schema check
+cannot see a non-existent pattern.
+
+**30 blinded runs** (15 wrong, 15 correct; both configs; `data/human_ratings.csv`), rated 0–2:
+
+| Automatic signal vs human | Spearman ρ (correctness) | ρ (usefulness) |
+|---|---|---|
+| `answer_correct` (automatic grading) | **0.89** (p < 0.001) | **0.82** (p < 0.001) |
+| LLM judge `faithful` | −0.18 (p = 0.34) | −0.20 (p = 0.30) |
+| LLM calls / tokens / cost | between −0.07 and 0.26, all p > 0.15 | |
+
+Automatic grading agreed with the reviewer's "fully correct" (score 2) on **28/30** runs (0.93); the
+LLM judge on **14/30** (0.47), i.e. no better than chance. The two grading disagreements cut both
+ways: R29 answered "Rotterdam DC (S-002)" correctly in text but put the site id in
+`answer_values`, so automatic grading was too strict; R15 merged the two Stationsplein sites
+without saying so, which the union rule accepted but the reviewer scored 1. Effort (steps, tokens,
+cost) did not predict quality. With one rater and 30 runs these results are exploratory.
 
 ## 7. Limitations and next steps
 
