@@ -2,6 +2,9 @@
 
 **Evaluating a ReAct-style Text-to-Cypher agent on a synthetic telecom network graph.**
 
+Repo: <https://github.com/calson66/netgraph-eval> · Report: [docs/report.md](docs/report.md) ·
+Metric taxonomy: [docs/metric_taxonomy.md](docs/metric_taxonomy.md)
+
 An LLM agent that inspects the schema, writes Cypher, reads the result and corrects itself — evaluated
 on a small Neo4j knowledge graph that mimics a fixed telecom network. The project asks:
 
@@ -32,6 +35,27 @@ by heuristic rules (`src/netgraph/grading.py`). Regenerate everything with
 ![Failure stages](results/figures/failure_stages.png)
 ![Accuracy vs cost](results/figures/accuracy_vs_cost.png)
 
+## Degradation detection (agent, 50 runs per condition)
+
+| Condition | Accuracy Δ | Label-free signals that alarmed (of 7) |
+|---|---|---|
+| Prompt without "check schema / fix errors" | −0.06 | 4 — limit hits, LLM calls, tokens, unfaithful rate |
+| Smaller model (DeepSeek Flash) | −0.02 | 2 — tokens, unfaithful rate |
+| Schema renamed in the live DB | −0.14 | 5 — limit hits, LLM calls, tokens, unfaithful, refusals |
+| Schema renamed, `direct` (stale static schema) | −0.36 | 7 — all, incl. empty-result rate 0.10 → 0.30 |
+
+Alarm = outside mean ± 2 SD of the three normal repeats (`results/tables/degradation_detection.csv`).
+
+## Value (minutes per question are an assumption, `configs/value_minutes.yaml`)
+
+| | `direct` | `agent` | router: agent only for multi-hop/impact (oracle) |
+|---|---|---|---|
+| Accuracy | 0.81 | 0.96 | 0.96 |
+| Cost per success (USD) | 0.0020 | 0.0075 | 0.0051 |
+| Net analyst minutes per run | 3.4 | 6.1 | 6.1 |
+
+![Value vs cost](results/figures/value_vs_cost.png)
+
 ## Quick start
 
 ```bash
@@ -41,6 +65,10 @@ uv sync && uv run pytest          # 3. install deps and run the smoke tests
 ```
 
 Run only the offline tests (no database, no API cost): `uv run pytest -m "not neo4j and not llm"`.
+
+Reproduce all tables and figures from the committed raw traces (no API key or database needed):
+`uv run python scripts/make_report_assets.py`. Re-running experiments:
+`uv run python scripts/build_graph.py`, then `uv run python scripts/run_experiment.py --exp main --repeats 3`.
 
 ## Known limitation: read-only access
 
@@ -53,10 +81,10 @@ agent query inside a read transaction with a 5 s timeout and a 50-row cap.
 
 ```text
 configs/   models, prices, prompts, value assumptions (copied into every run manifest)
-data/      benchmark.jsonl, review_log.csv, human_ratings.csv
+data/      benchmark (src + jsonl), review_log.csv, failure_spotcheck.csv, human_ratings.csv
 src/       netgraph package: db, llm, graph_gen, agent, baseline, trace, grading, judge, analysis
-scripts/   build_graph.py, run_experiment.py, make_report_assets.py
+scripts/   build_graph.py, make_benchmark.py, run_experiment.py, schema_change.py,
+           make_report_assets.py, make_review_sheets.py, analyze_reviews.py
 results/   raw/ (append-only traces), tables/, figures/, manifests/
 docs/      report.md, metric_taxonomy.md, schema.md, benchmark_review.md
 ```
-
