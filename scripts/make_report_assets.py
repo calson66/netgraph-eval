@@ -4,6 +4,7 @@ Steps: load traces -> LLM-judge any run not yet judged (cached, append-only) -> 
 write results/tables/*.csv and results/figures/*.png. Phase 5 tables are added when
 results/raw/degradation.jsonl exists.
 Usage: uv run python scripts/make_report_assets.py [--no-judge]
+       (--no-judge: make no new judge API calls; cached verdicts are still used)
 """
 
 import argparse
@@ -24,7 +25,7 @@ RAW, TABLES, FIGURES = (ROOT / "results" / d for d in ("raw", "tables", "figures
 def graded_frame(exp: str, use_judge: bool) -> pd.DataFrame:
     questions = {q.qid: q for q in load_benchmark()}
     traces = load_traces(RAW / f"{exp}.jsonl")
-    verdicts = judge_all(traces, questions, RAW / f"judge_{exp}.jsonl") if use_judge else {}
+    verdicts = judge_all(traces, questions, RAW / f"judge_{exp}.jsonl", call_new=use_judge)
     rows = []
     for t in traces:
         g = grade(questions[t.qid], t)

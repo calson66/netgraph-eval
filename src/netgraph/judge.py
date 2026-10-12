@@ -58,14 +58,16 @@ def judge(question: str, t: Trace, model: str | None = None) -> dict:
             "input_tokens": resp.input_tokens, "output_tokens": resp.output_tokens}
 
 
-def judge_all(traces: list[Trace], questions: dict, path: Path) -> dict[str, dict]:
-    """Judge every trace not yet in the cache file; return {run_id: verdict}."""
+def judge_all(traces: list[Trace], questions: dict, path: Path,
+              call_new: bool = True) -> dict[str, dict]:
+    """Judge every trace not yet in the cache file; return {run_id: verdict}.
+    With call_new=False only cached verdicts are returned (no API calls)."""
     cache = {}
     if path.exists():
         cache = {v["run_id"]: v for v in map(json.loads, path.read_text().splitlines()) if v}
     with path.open("a") as f:
         for t in traces:
-            if t.run_id in cache or t.error:
+            if t.run_id in cache or t.error or not call_new:
                 continue
             verdict = judge(questions[t.qid].question, t)
             cache[t.run_id] = verdict

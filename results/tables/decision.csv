@@ -1,4 +1,4 @@
 config,runs,accuracy,tokens_per_success,cost_per_success_usd,net_value_minutes_per_run,value_per_1k_tokens,escalation_rate,escalation_precision,escalation_recall,cost_per_run_usd
 direct,150,0.813,1350,0.00203,3.43,3.127,0.06,1.0,0.321,0.00165
-agent,150,0.96,5144,0.00749,6.06,1.228,0.08,0.333,0.667,0.00719
-router (oracle category),150,0.96,3470,0.00509,6.06,1.82,0.073,0.364,0.667,0.00489
+agent,150,0.96,5144,0.00749,6.06,1.228,0.1,0.267,0.667,0.00719
+router (oracle category),150,0.96,3470,0.00509,6.06,1.82,0.08,0.333,0.667,0.00489
